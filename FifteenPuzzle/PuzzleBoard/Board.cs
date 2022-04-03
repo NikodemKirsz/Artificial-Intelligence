@@ -7,12 +7,11 @@ public class Board : ICloneable, IEquatable<Board>
 {
     public short ColumnSize { get; init; }
     public short RowSize { get; init; }
-
     public uint DistanceHammings
     {
         get
         {
-            if (_distanceHammings == 0) _distanceHammings = HammingDistance(_board);
+            if (_distanceHammings == 0) _distanceHammings = HammingDistance(_board, RowSize, ColumnSize);
             return _distanceHammings;
         }
     }
@@ -20,7 +19,7 @@ public class Board : ICloneable, IEquatable<Board>
     {
         get
         {
-            if (_distanceManhattan == 0) _distanceManhattan = ManhattanDistance(_board);
+            if (_distanceManhattan == 0) _distanceManhattan = ManhattanDistance(_board, RowSize, ColumnSize);
             return _distanceManhattan;
         }
     }
@@ -28,11 +27,10 @@ public class Board : ICloneable, IEquatable<Board>
     {
         get
         {
-            if (_hash == 0) _hash = ComputeSmartHash(_board);
+            if (_hash == 0) _hash = ComputeSmartHash(_board, RowSize, ColumnSize);
             return _hash;
         }
     }
-
     public int PathLength
     {
         get => _pathLength;
@@ -53,7 +51,7 @@ public class Board : ICloneable, IEquatable<Board>
         : this(board, true, null, null)
     { }
 
-    private Board(short[,] board, bool copyArr, Board? parent, ulong? correctHash)
+    private Board(short[,] board, bool copyArr, Board? parent, Direction? lastMove)
     {
         int columnLength = board.GetLength(0);
 
@@ -86,24 +84,38 @@ public class Board : ICloneable, IEquatable<Board>
         {
             _board = board;
 
-            for (short i = 0; i < columnLength; i++)
+            if (lastMove is not null && parent is not null)
             {
-                for (short j = 0; j < rowLength; j++)
+                switch (lastMove)
                 {
-                    if (board[i, j] <= 0)
-                    {
-                        _emptyCellRow = i;
-                        _emptyCellColumn = j;
-                    }
+                    case Direction.Up:
+                        _emptyCellRow = (short)(parent._emptyCellRow - 1);
+                        _emptyCellColumn = parent._emptyCellColumn;
+                        break;
+                    case Direction.Down:
+                        _emptyCellRow = (short)(parent._emptyCellRow + 1);
+                        _emptyCellColumn = parent._emptyCellColumn;
+                        break;
+                    case Direction.Left:
+                        _emptyCellRow = parent._emptyCellRow;
+                        _emptyCellColumn = (short)(parent._emptyCellColumn - 1);
+                        break;
+                    case Direction.Right:
+                        _emptyCellRow = parent._emptyCellRow;
+                        _emptyCellColumn = (short)(parent._emptyCellColumn + 1);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(lastMove), lastMove, "Last move out of definition.");
                 }
             }
         }
+
         ColumnSize = (short)_board.GetLength(0);
         RowSize = (short)_board.GetLength(1);
 
         _parent = parent;
         _pathLength = parent is not null ? parent.PathLength + 1 : 0;
-        _correctHash = correctHash ?? ComputeCorrectHash(rowLength, columnLength);
+        _correctHash = parent is not null ? parent._correctHash : ComputeCorrectHash(rowLength, columnLength);
     }
 
     private static ulong ComputeCorrectHash(int rowSize, int columnSize)
@@ -120,17 +132,17 @@ public class Board : ICloneable, IEquatable<Board>
             }
         }
 
-        return ComputeSmartHash(correctArray);
+        return ComputeSmartHash(correctArray, rowSize, columnSize);
     }
 
-    private static ulong ComputeSmartHash(short[,] board)
+    private static ulong ComputeSmartHash(short[,] board, int rowSize = -1, int columnSize = -1)
     {
         const ulong Prime = 31ul;
 
         ulong hash = 0;
 
-        int rowSize = board.GetLength(0);
-        int columnSize = board.GetLength(1);
+        if (rowSize == -1) rowSize = board.GetLength(0);
+        if (columnSize == -1) columnSize = board.GetLength(1);
         int boardSize = board.Length;
         for (int i = 0; i < rowSize; i++)
         {
@@ -143,16 +155,16 @@ public class Board : ICloneable, IEquatable<Board>
         return hash;
     }
 
-    private static uint HammingDistance(short[,] board)
+    private static uint HammingDistance(short[,] board, int rowSize = -1, int columnSize = -1)
     {
         uint dist = 0;
 
-        int rowSize = board.GetLength(0);
-        int columnSize = board.GetLength(1);
-        var boardSize = board.Length;
+        if (rowSize == -1) rowSize = board.GetLength(0);
+        if (columnSize == -1) columnSize = board.GetLength(1);
+        int boardSize = board.Length;
         for (var i = 0; i < rowSize; i++)
         {
-            var offset = i * rowSize;
+            int offset = i * rowSize;
             for (var j = 0; j < columnSize; j++)
             {
                 int value = board[i, j];
@@ -171,12 +183,12 @@ public class Board : ICloneable, IEquatable<Board>
     //      2 1 0 1 2      4 3 2 1 2      3 2 3 4 5      2 3 4 5 6
     //      3 2 1 2 3      3 2 1 0 1      2 1 2 3 4      3 4 5 6 7
     //      4 3 2 3 4      4 3 2 1 2      1 0 1 2 3      4 5 6 7 8
-    private static uint ManhattanDistance(short[,] board)
+    private static uint ManhattanDistance(short[,] board, int rowSize = -1, int columnSize = -1)
     {
         uint dist = 0;
 
-        int rowSize = board.GetLength(0);
-        int columnSize = board.GetLength(1);
+        if (rowSize == -1) rowSize = board.GetLength(0);
+        if (columnSize == -1) columnSize = board.GetLength(1);
         int boardSize = board.Length;
         for (var i = 0; i < rowSize; i++)
         {
@@ -267,7 +279,7 @@ public class Board : ICloneable, IEquatable<Board>
 
     public int At(int row, int column) => _board[row, column];
 
-    public Direction[] ClarifyMovement()
+    public List<Direction> ClarifyMovement()
     {
         return ClarifyMovement(
             new[] {
@@ -278,10 +290,8 @@ public class Board : ICloneable, IEquatable<Board>
             });
     }
 
-    public Direction[] ClarifyMovement(Direction[] directions)
+    public List<Direction> ClarifyMovement(Direction[] directions)
     {
-        var newDirections = new List<Direction>(3);
-
         bool hasLastDirection = false;
         Direction cancellingDir = Direction.Right;
         if (_parent is not null)
@@ -289,6 +299,8 @@ public class Board : ICloneable, IEquatable<Board>
             hasLastDirection = true;
             cancellingDir = GetCancellingDirection(GetLastMove(this, _parent));
         }
+
+        var newDirections = new List<Direction>(4);
 
         foreach (var direction in directions)
         {
@@ -315,7 +327,7 @@ public class Board : ICloneable, IEquatable<Board>
             newDirections.Add(direction);
         }
 
-        return newDirections.ToArray();
+        return newDirections;
     }
 
     public Board Move(Direction dir)
@@ -325,7 +337,8 @@ public class Board : ICloneable, IEquatable<Board>
 
     private Board Move(int row, int column, Direction dir)
     {
-        short[,] newBoard = Arrayer.Copy(_board);
+        short[,] newBoard = new short[RowSize, ColumnSize];
+        Array.Copy(_board, newBoard, _board.Length);
 
         ref short changedCell = ref newBoard[0, 0];
         switch (dir)
@@ -350,11 +363,9 @@ public class Board : ICloneable, IEquatable<Board>
                 return this;
         }
 
-        short temp = changedCell;
-        changedCell = _board[row, column];
-        newBoard[row, column] = temp;
+        (newBoard[row, column], changedCell) = (changedCell, _board[row, column]);
 
-        return new Board(newBoard, false, this, _correctHash);
+        return new Board(newBoard, false, this, dir);
     }
 
     private static Direction GetCancellingDirection(Direction direction)

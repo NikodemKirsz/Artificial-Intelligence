@@ -39,34 +39,34 @@ class Program
 
     private static void TestRun()
     {
-        /*var readFile = new FileFifteenReader("4x4_07_0255.txt");
-        var board = readFile.Read();*/
-
-
+        //var readFile = new FileFifteenReader("4x4_07_0255.txt"); var board = readFile.Read();
         //var board = PuzzleGenerator.Generate(4, 4, 0);
-        PuzzleGenerator.GenerateAll(7);
-        
-        /*board.Print();
+        short[,] game = {
+            {2, 3, 4, 0},
+            {6, 7, 12, 8},
+            {1, 5, 10, 11 },
+            {9, 13, 14, 15 } 
+        };
+        var board = new Board(game);
 
+        board.Print();
 
-        IPuzzleSolverDiagnostics solver = new AStar(Heur.Manhattan);
-
+        /*IPuzzleSolverDiagnostics solver = new AStar(Heur.Manhattan);*/
         /*IPuzzleSolverDiagnostics solver = new BFS(new[]
         {
             Dir.Up,
             Dir.Down,
             Dir.Left,
             Dir.Right
-        });#1#
-
-        /*IPuzzleSolverDiagnostics solver = new DFS(
+        });*/
+        IPuzzleSolverDiagnostics solver = new DFS(
             new[] {
             Dir.Up,
             Dir.Down,
             Dir.Left,
             Dir.Right
             },
-            19);#1#
+            19);
 
         var solvedBoard = board.Solve(solver, out RunInfo runInfo);
 
@@ -74,9 +74,9 @@ class Program
         Console.WriteLine(runInfo);
 
         /*var saveFile = new FileFifteenPuzzleDao("test_sol.file");
-        saveFile.Write(solvedBoard);#1#
+        saveFile.Write(solvedBoard);*/
 
-        Console.ReadKey();*/
+        Console.ReadKey();
     }
 
     private static (Board board, IPuzzleSolverDiagnostics solver, BasicInfoWriter solutionWritter, AdditionalInfoWriter additionalWritter) InputParser(string[] args)
